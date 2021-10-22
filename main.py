@@ -1,4 +1,3 @@
-import logging
 import time
 
 import requests
@@ -32,7 +31,13 @@ while True:
                                      f"pair_id: {pair['pair_id']} \n" \
                                      f"market: {pair['market']} \n" \
                                      f"price: {pair['price']} \n" \
-                                     f"amm_id: {pair['amm_id']} \n"
+                                     f"amm_id: {pair['amm_id']} \n" \
+                                     f"official: {pair['official']} \n" \
+                                     f"liquidity: {pair['liquidity']} \n" \
+                                     f"token_amount_coin: {pair['token_amount_coin']} \n" \
+                                     f"token_amount_lp: {pair['token_amount_lp']} \n" \
+                                     f"token_amount_pc: {pair['token_amount_pc']} \n" \
+                                     f"apy: {pair['apy']} \n"
                     requests.get(TELE_URL.format(TELE_TOKEN, CHAT_ID, formatted_pair))
                     DATA[pair['market']] = pair
         else:
@@ -44,7 +49,7 @@ while True:
         print("HttpError exception", e)
         raise SystemExit(e)
 
-    time.sleep(15)
+    time.sleep(3)
 
 # {
 #         "name": "SLB-USDT",
@@ -70,3 +75,7 @@ while True:
 #         "apy": 7.05
 # }
 
+# TODO:
+# add 3 button: solscan, dexlab chart
+# them thong tin ve liquidity
+# call api in chat
