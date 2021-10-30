@@ -1,8 +1,11 @@
+import json
+import os
 import random
 import time
+
 import backoff
 import requests
-from requests import Timeout, HTTPError
+from requests.exceptions import Timeout, HTTPError, RequestException
 
 GET_PAIRS_API = "https://api.raydium.io/pairs"
 TELE_URL = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}'
@@ -10,7 +13,9 @@ TELE_TOKEN = "2079209599:AAEcwwdWgTnLD6Jr_C42h-W7DnKXN0zdxT4"
 # CHAT_ID = "-771318813"
 PRIVATE_CHAT_ID = "-622340650"
 SERUM_CHAT_ID = "-1001409426229"
+DATA_FILE_PATH = 'DATA.json'
 DATA = {}
+NO_PAIRS = 0
 
 
 def send_to_tele(p, action):
@@ -29,13 +34,22 @@ def send_to_tele(p, action):
 
 
 def init():
-    first_result = requests.get(GET_PAIRS_API)
-    if first_result.status_code == 200:
-        print("Init with number of pairs: " + str(len(first_result.json())))
-        for pair in first_result.json():
-            DATA[pair['amm_id']] = pair
+    global DATA, NO_PAIRS
+    if os.path.exists(DATA_FILE_PATH) and os.stat(DATA_FILE_PATH).st_size != 0:
+        with open(DATA_FILE_PATH) as json_file:
+            DATA = json.load(json_file)
+            NO_PAIRS = len(DATA)
+            print(f"Init DATA from FILE with {str(NO_PAIRS)} pairs.")
     else:
-        print("Status != 200")
+        # file not exists or empty -> init from api
+        first_result = requests.get(GET_PAIRS_API)
+        if first_result.status_code == 200:
+            for pair in first_result.json():
+                DATA[pair['amm_id']] = pair
+            NO_PAIRS = len(DATA)
+            print(f"Init DATA from API with {str(len(DATA))} pairs.")
+        else:
+            print("Status != 200")
 
 
 def backoff_hdlr(details):
@@ -44,17 +58,17 @@ def backoff_hdlr(details):
           "{kwargs}".format(**details))
 
 
-@backoff.on_exception(backoff.expo, (requests.exceptions.Timeout,
-                                     requests.exceptions.RequestException,
-                                     requests.exceptions.HTTPError),
-                      max_tries=30,
+@backoff.on_exception(backoff.expo, (Timeout, RequestException, HTTPError),
+                      max_tries=3,
                       on_backoff=backoff_hdlr
                       )
 def main():
+    global DATA, NO_PAIRS
     while True:
         second_result = requests.get(GET_PAIRS_API)
         if second_result.status_code == 200:
-            print("Number of pairs: " + str(len(second_result.json())))
+            NO_PAIRS = len(second_result.json())
+            print("Current pairs: " + str(NO_PAIRS))
             for pair in second_result.json():
                 if pair['amm_id'] in DATA:
                     alr_pair = DATA[pair['amm_id']]
@@ -73,9 +87,23 @@ def main():
         time.sleep(random.randint(1, 10))
 
 
+def save_data():
+    global DATA, NO_PAIRS
+    json_obj = json.dumps(DATA)
+    f = open("DATA.json", "w")
+    f.write(json_obj)
+    f.close()
+    print(f"DATA saved with {NO_PAIRS} pairs.")
+
+
 if __name__ == '__main__':
     init()
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, Timeout, RequestException, HTTPError) as e:
+        print("Exception")
+        print(e)
+        save_data()
 
 # {
 #         "name": "SLB-USDT",
@@ -103,6 +131,4 @@ if __name__ == '__main__':
 
 # TODO:
 # add 3 button: solscan, dexlab chart
-# them thong tin ve liquidity
 # call api in chat
-# check neu do tien vo pool
