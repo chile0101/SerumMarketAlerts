@@ -1,55 +1,81 @@
+import random
 import time
-
+import backoff
 import requests
 from requests import Timeout, HTTPError
 
 GET_PAIRS_API = "https://api.raydium.io/pairs"
 TELE_URL = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}'
 TELE_TOKEN = "2079209599:AAEcwwdWgTnLD6Jr_C42h-W7DnKXN0zdxT4"
-CHAT_ID = "-771318813"
+# CHAT_ID = "-771318813"
+PRIVATE_CHAT_ID = "-622340650"
+SERUM_CHAT_ID = "-1001409426229"
 DATA = {}
 
-first_result = requests.get(GET_PAIRS_API)
-if first_result.status_code == 200:
-    print("Init with number of pairs: " + str(len(first_result.json())))
-    for pair in first_result.json():
-        DATA[pair['market']] = pair
-else:
-    print("Status != 200")
 
-while True:
-    try:
+def send_to_tele(p, action):
+    formatted_pair = "" \
+                     f"{action} \n" \
+                     f"name: {p['name']} \n" \
+                     f"market: {p['market']} \n" \
+                     f"price: {p['price']} \n" \
+                     f"amm_id: {p['amm_id']} \n" \
+                     f"token_amount_coin: {p['token_amount_coin']} \n" \
+                     f"token_amount_pc: {p['token_amount_pc']} \n"
+    print(formatted_pair)
+    requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
+    time.sleep(160)
+    requests.get(TELE_URL.format(TELE_TOKEN, SERUM_CHAT_ID, formatted_pair))
+
+
+def init():
+    first_result = requests.get(GET_PAIRS_API)
+    if first_result.status_code == 200:
+        print("Init with number of pairs: " + str(len(first_result.json())))
+        for pair in first_result.json():
+            DATA[pair['amm_id']] = pair
+    else:
+        print("Status != 200")
+
+
+def backoff_hdlr(details):
+    print("Backing off {wait:0.1f} seconds after {tries} tries "
+          "calling function {target} with args {args} and kwargs "
+          "{kwargs}".format(**details))
+
+
+@backoff.on_exception(backoff.expo, (requests.exceptions.Timeout,
+                                     requests.exceptions.RequestException,
+                                     requests.exceptions.HTTPError),
+                      max_tries=30,
+                      on_backoff=backoff_hdlr
+                      )
+def main():
+    while True:
         second_result = requests.get(GET_PAIRS_API)
         if second_result.status_code == 200:
             print("Number of pairs: " + str(len(second_result.json())))
             for pair in second_result.json():
-                if pair['market'] in DATA:
-                    continue
+                if pair['amm_id'] in DATA:
+                    alr_pair = DATA[pair['amm_id']]
+
+                    if (pair['token_amount_pc'] > 10 and pair['token_amount_pc'] > 30 * alr_pair['token_amount_pc']) \
+                            or (pair['token_amount_coin'] > 1000
+                                and pair['token_amount_coin'] > 30 * alr_pair['token_amount_coin']):
+                        send_to_tele(pair, "Add pool")
+
+                    DATA[pair['amm_id']] = pair
+
                 else:
-                    formatted_pair = "" \
-                                     f"name: {pair['name']} \n" \
-                                     f"pair_id: {pair['pair_id']} \n" \
-                                     f"market: {pair['market']} \n" \
-                                     f"price: {pair['price']} \n" \
-                                     f"amm_id: {pair['amm_id']} \n" \
-                                     f"official: {pair['official']} \n" \
-                                     f"liquidity: {pair['liquidity']} \n" \
-                                     f"token_amount_coin: {pair['token_amount_coin']} \n" \
-                                     f"token_amount_lp: {pair['token_amount_lp']} \n" \
-                                     f"token_amount_pc: {pair['token_amount_pc']} \n" \
-                                     f"apy: {pair['apy']} \n"
-                    requests.get(TELE_URL.format(TELE_TOKEN, CHAT_ID, formatted_pair))
-                    DATA[pair['market']] = pair
-        else:
-            print("Status != 200")
+                    send_to_tele(pair, "New pool")
+                    DATA[pair['amm_id']] = pair
 
-    except Timeout as e:
-        print("Timeout exception", e)
-    except HTTPError as e:
-        print("HttpError exception", e)
-        raise SystemExit(e)
+        time.sleep(random.randint(1, 10))
 
-    time.sleep(3)
+
+if __name__ == '__main__':
+    init()
+    main()
 
 # {
 #         "name": "SLB-USDT",
@@ -79,3 +105,4 @@ while True:
 # add 3 button: solscan, dexlab chart
 # them thong tin ve liquidity
 # call api in chat
+# check neu do tien vo pool
