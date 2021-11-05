@@ -13,24 +13,46 @@ TELE_TOKEN = "2079209599:AAEcwwdWgTnLD6Jr_C42h-W7DnKXN0zdxT4"
 # CHAT_ID = "-771318813"
 PRIVATE_CHAT_ID = "-622340650"
 SERUM_CHAT_ID = "-1001409426229"
+XNXX_GROUP = "-1001227796934"
 DATA_FILE_PATH = 'DATA.json'
 DATA = {}
 NO_PAIRS = 0
 
 
-def send_to_tele(p, action):
-    formatted_pair = "" \
-                     f"{action} \n" \
-                     f"name: {p['name']} \n" \
-                     f"market: {p['market']} \n" \
-                     f"price: {p['price']} \n" \
-                     f"amm_id: {p['amm_id']} \n" \
-                     f"token_amount_coin: {p['token_amount_coin']} \n" \
-                     f"token_amount_pc: {p['token_amount_pc']} \n"
-    print(formatted_pair)
-    requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
-    time.sleep(160)
-    requests.get(TELE_URL.format(TELE_TOKEN, SERUM_CHAT_ID, formatted_pair))
+class ChangeType:
+    NEW_TOKEN = "New Token"
+    UPDATED_INFO = "Updated Info"
+    ADDED_POOL = "Added Pool"
+
+
+def controller(p, action):
+    if action == "exception":
+        requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, "Bot is not working."))
+    else:
+
+        formatted_pair = "" \
+                         f"{action} \n" \
+                         f"name: {p['name']} \n" \
+                         f"market: {p['market']} \n" \
+                         f"pairs: {p['pair_id']}\n" \
+                         f"price: {p['price']} \n" \
+                         f"amm_id: {p['amm_id']} \n" \
+                         f"token_amount_coin: {p['token_amount_coin']} \n" \
+                         f"token_amount_pc: {p['token_amount_pc']} \n"
+
+        requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
+
+        if action in (ChangeType.NEW_TOKEN, ChangeType.UPDATED_INFO):
+            formatted_pair = "" \
+                             f"New coin: \n" \
+                             f"name: {p['name'].split('-')[0]} \n" \
+                             f"address: {p['pair_id'].split('-')[0]}\n" \
+                             f"market: {p['market']} \n"
+
+            time.sleep(160)
+            requests.get(TELE_URL.format(TELE_TOKEN, SERUM_CHAT_ID, formatted_pair))
+            time.sleep(60)
+            requests.get(TELE_URL.format(TELE_TOKEN, XNXX_GROUP, formatted_pair))
 
 
 def init():
@@ -59,7 +81,7 @@ def backoff_hdlr(details):
 
 
 @backoff.on_exception(backoff.expo, (Timeout, RequestException, HTTPError),
-                      max_tries=3,
+                      max_tries=10,
                       on_backoff=backoff_hdlr
                       )
 def main():
@@ -72,19 +94,21 @@ def main():
             for pair in second_result.json():
                 if pair['amm_id'] in DATA:
                     alr_pair = DATA[pair['amm_id']]
-
-                    if (pair['token_amount_pc'] > 10 and pair['token_amount_pc'] > 30 * alr_pair['token_amount_pc']) \
-                            or (pair['token_amount_coin'] > 1000
-                                and pair['token_amount_coin'] > 30 * alr_pair['token_amount_coin']):
-                        send_to_tele(pair, "Add pool")
-
                     DATA[pair['amm_id']] = pair
+
+                    if (pair['token_amount_pc'] > 30 and pair['token_amount_pc'] > 30 * alr_pair['token_amount_pc']) \
+                            or (pair['token_amount_coin'] > 100000
+                                and pair['token_amount_coin'] > 30 * alr_pair['token_amount_coin']):
+                        controller(pair, ChangeType.ADDED_POOL)
+
+                    if pair['name'] != alr_pair['name']:
+                        controller(pair, ChangeType.UPDATED_INFO)
 
                 else:
-                    send_to_tele(pair, "New pool")
+                    controller(pair, ChangeType.NEW_TOKEN)
                     DATA[pair['amm_id']] = pair
 
-        time.sleep(random.randint(1, 10))
+        time.sleep(random.randint(3, 6))
 
 
 def save_data():
@@ -100,8 +124,12 @@ if __name__ == '__main__':
     init()
     try:
         main()
-    except (KeyboardInterrupt, Timeout, RequestException, HTTPError) as e:
-        print("Exception")
+        save_data()
+    except KeyboardInterrupt:
+        save_data()
+        print("KeyboardInterrupt")
+    except Exception as e:
+        controller(None, "exception")
         print(e)
         save_data()
 
@@ -132,3 +160,5 @@ if __name__ == '__main__':
 # TODO:
 # add 3 button: solscan, dexlab chart
 # call api in chat
+# Viet them con new coingeco listing
+# stuck

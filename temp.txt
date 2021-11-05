@@ -1,0 +1,6 @@
+Token Address: J8n8QPsUgtdjbCcnwBiBdrafqAznieZYNFUTmBYWv1ig
+Token Name: SolShell
+Token Symbol: SSH
+Logo: https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/J8n8QPsUgtdjbCcnwBiBdrafqAznieZYNFUTmBYWv1ig/logo.png
+Link to the official homepage of token: http://solshell.live/
+Coingecko ID if available (https://www.coingecko.com/api/documentations/v3#/coins/get_coins__id_):
