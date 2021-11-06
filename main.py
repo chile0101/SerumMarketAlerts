@@ -42,17 +42,18 @@ def controller(p, action):
 
         requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
 
-        if action in (ChangeType.NEW_TOKEN, ChangeType.UPDATED_INFO):
-            formatted_pair = "" \
-                             f"New coin: \n" \
-                             f"name: {p['name'].split('-')[0]} \n" \
-                             f"address: {p['pair_id'].split('-')[0]}\n" \
-                             f"market: {p['market']} \n"
 
-            time.sleep(160)
-            requests.get(TELE_URL.format(TELE_TOKEN, SERUM_CHAT_ID, formatted_pair))
-            time.sleep(60)
-            requests.get(TELE_URL.format(TELE_TOKEN, XNXX_GROUP, formatted_pair))
+        # if action in (ChangeType.NEW_TOKEN, ChangeType.UPDATED_INFO, ChangeType.ADDED_POOL):
+        #     formatted_pair = "" \
+        #                      f"token: {p['name'].split('-')[0]} \n" \
+        #                      f"address: {p['pair_id'].split('-')[0]}\n" \
+        #                      f"market: {p['market']} \n" \
+        #                      f"price: {p['price']} \n"
+
+            # time.sleep(10)
+            # requests.get(TELE_URL.format(TELE_TOKEN, SERUM_CHAT_ID, formatted_pair))
+            # time.sleep(10)
+            # requests.get(TELE_URL.format(TELE_TOKEN, XNXX_GROUP, formatted_pair))
 
 
 def init():
@@ -105,8 +106,16 @@ def main():
                         controller(pair, ChangeType.UPDATED_INFO)
 
                 else:
-                    controller(pair, ChangeType.NEW_TOKEN)
                     DATA[pair['amm_id']] = pair
+
+                    if pair['name'].split('-')[1] not in ['USDC', 'USDT']:
+                        print('Ignore new token: not USD pair')
+                        continue
+                    if pair['token_amount_pc'] < 300:
+                        print('Ignore new token: pool less than 300')
+                        continue
+
+                    controller(pair, ChangeType.NEW_TOKEN)
 
         time.sleep(random.randint(3, 6))
 
