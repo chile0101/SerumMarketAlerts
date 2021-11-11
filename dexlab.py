@@ -7,14 +7,8 @@ import backoff
 import requests
 from requests.exceptions import Timeout, HTTPError, RequestException
 
-GET_PAIRS_API = "https://api.dexlab.space/v1/pairs"
-TELE_URL = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}'
-TELE_TOKEN = "2079209599:AAEcwwdWgTnLD6Jr_C42h-W7DnKXN0zdxT4"
-# CHAT_ID = "-771318813"
-PRIVATE_CHAT_ID = "-622340650"
-SERUM_CHAT_ID = "-1001409426229"
-XNXX_GROUP = "-1001227796934"
-DATA_FILE_PATH = 'MARKETS.json'
+from config import TELE_URL, TELE_TOKEN, PRIVATE_CHAT_ID, DEXLAB_PAIRS_DATA, DEXLAB_GET_PAIRS_API
+
 DATA = {}
 NO_PAIRS = 0
 
@@ -43,14 +37,14 @@ def controller(p, action):
 
 def init():
     global DATA, NO_PAIRS
-    if os.path.exists(DATA_FILE_PATH) and os.stat(DATA_FILE_PATH).st_size != 0:
-        with open(DATA_FILE_PATH) as json_file:
+    if os.path.exists(DEXLAB_PAIRS_DATA) and os.stat(DEXLAB_PAIRS_DATA).st_size != 0:
+        with open(DEXLAB_PAIRS_DATA) as json_file:
             DATA = json.load(json_file)
             NO_PAIRS = len(DATA)
             print(f"Init DATA from FILE with {str(NO_PAIRS)} pairs.")
     else:
         # file not exists or empty -> init from api
-        first_result = requests.get(GET_PAIRS_API)
+        first_result = requests.get(DEXLAB_GET_PAIRS_API)
         if first_result.status_code == 200:
             for pair in first_result.json()['data']:
                 DATA[pair['address']] = pair
@@ -73,10 +67,10 @@ def backoff_hdlr(details):
 def main():
     global DATA, NO_PAIRS
     while True:
-        second_result = requests.get(GET_PAIRS_API)
+        second_result = requests.get(DEXLAB_GET_PAIRS_API)
         if second_result.status_code == 200:
             NO_PAIRS = len(second_result.json()['data'])
-            print("Current pairs: " + str(NO_PAIRS))
+            print("Dexlab pairs: " + str(NO_PAIRS))
             for pair in second_result.json()['data']:
                 if pair['address'] in DATA:
                     continue
@@ -96,7 +90,7 @@ def save_data():
     print(f"DATA saved with {NO_PAIRS} pairs.")
 
 
-if __name__ == '__main__':
+def new_market_alert():
     init()
     try:
         main()
