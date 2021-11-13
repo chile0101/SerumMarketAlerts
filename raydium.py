@@ -21,7 +21,7 @@ class ChangeType:
 
 def controller(p, action):
     if action == "exception":
-        requests.get(TELE_URL.format(TELE_TOKEN, FIRST_CHAT_ID, "Bot is not working."))
+        requests.get(TELE_URL.format(TELE_TOKEN, FIRST_CHAT_ID, " is not working."))
     else:
 
         formatted_pair = "" \
@@ -35,8 +35,8 @@ def controller(p, action):
                          f"token_amount_pc: {p['token_amount_pc']} \n"
 
         requests.get(TELE_URL.format(TELE_TOKEN, FIRST_CHAT_ID, formatted_pair))
-        time.sleep(50)
-        requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
+        # time.sleep(60)
+        # requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
 
         # if action in (ChangeType.NEW_TOKEN, ChangeType.UPDATED_INFO, ChangeType.ADDED_POOL):
         #     formatted_pair = "" \
@@ -91,8 +91,8 @@ def main():
                     alr_pair = DATA[pair['amm_id']]
                     DATA[pair['amm_id']] = pair
                     if pair['token_amount_pc'] > 100 and pair['token_amount_pc'] > 10 * alr_pair['token_amount_pc']:
-                        controller(pair, ChangeType.ADDED_POOL)
-
+                        # controller(pair, ChangeType.ADDED_POOL)
+                        continue
                     if pair['name'] != alr_pair['name']:
                         controller(pair, ChangeType.UPDATED_INFO)
 
@@ -107,7 +107,7 @@ def main():
                         # continue
 
                     controller(pair, ChangeType.NEW_TOKEN)
-        n_rand = random.randint(1, 2)
+        n_rand = random.randint(3, 5)
         # print(f'Waiting...{n_rand}s')
         time.sleep(n_rand)
 
@@ -115,7 +115,7 @@ def main():
 def save_data():
     global DATA, NO_PAIRS
     json_obj = json.dumps(DATA)
-    f = open("DATA.json", "w")
+    f = open(RAYDIUM_PAIRS_DATA, "w")
     f.write(json_obj)
     f.close()
     print(f"DATA saved with {NO_PAIRS} pairs.")
@@ -134,6 +134,10 @@ def new_pool_alert():
         controller(None, "exception")
         print(e)
         save_data()
+
+
+if __name__ == '__main__':
+    new_pool_alert()
 
 # {
 #         "name": "SLB-USDT",

@@ -7,47 +7,39 @@ import backoff
 import requests
 from requests.exceptions import Timeout, HTTPError, RequestException
 
-from config import TELE_URL, TELE_TOKEN, PRIVATE_CHAT_ID, DEXLAB_PAIRS_DATA, DEXLAB_GET_PAIRS_API
+from config import TELE_TOKEN, TELE_URL, FIRST_CHAT_ID, RAYDIUM_RPC_DATA, RAYDIUM_RPC_AMM_API, ChangeType
 
 DATA = {}
 NO_PAIRS = 0
 
 
-class ChangeType:
-    NEW_MARKET = "New Market"
-    # UPDATED_INFO = "Updated Info"
-    # ADDED_POOL = "Added Pool"
-
-
 def controller(p, action):
     if action == "exception":
-        requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, "Bot is not working."))
+        requests.get(TELE_URL.format(TELE_TOKEN, FIRST_CHAT_ID, " is not working."))
     else:
 
         formatted_pair = "" \
                          f"{action} \n" \
-                         f"market: {p['market']} \n" \
-                         f"coin: {p['coin']} \n" \
-                         f"priceCurrency: {p['priceCurrency']}\n" \
-                         f"address: {p['address']} \n" \
-                         f"baseMint: {p['baseMint']} \n"
+                         f"market/amm: {p['pubkey']} \n"
 
-        requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
+        requests.get(TELE_URL.format(TELE_TOKEN, FIRST_CHAT_ID, formatted_pair))
+        # time.sleep(60)
+        # requests.get(TELE_URL.format(TELE_TOKEN, PRIVATE_CHAT_ID, formatted_pair))
 
 
 def init():
     global DATA, NO_PAIRS
-    if os.path.exists(DEXLAB_PAIRS_DATA) and os.stat(DEXLAB_PAIRS_DATA).st_size != 0:
-        with open(DEXLAB_PAIRS_DATA) as json_file:
+    if os.path.exists(RAYDIUM_RPC_DATA) and os.stat(RAYDIUM_RPC_DATA).st_size != 0:
+        with open(RAYDIUM_RPC_DATA) as json_file:
             DATA = json.load(json_file)
             NO_PAIRS = len(DATA)
             print(f"Init DATA from FILE with {str(NO_PAIRS)} pairs.")
     else:
         # file not exists or empty -> init from api
-        first_result = requests.get(DEXLAB_GET_PAIRS_API)
+        first_result = requests.get(RAYDIUM_RPC_AMM_API)
         if first_result.status_code == 200:
-            for pair in first_result.json()['data']:
-                DATA[pair['address']] = pair
+            for pair in first_result.json()['result']:
+                DATA[pair['pubkey']] = pair
             NO_PAIRS = len(DATA)
             print(f"Init DATA from API with {str(len(DATA))} pairs.")
         else:
@@ -64,36 +56,37 @@ def backoff_hdlr(details):
                       max_tries=10,
                       on_backoff=backoff_hdlr
                       )
-def main():
+def scan():
     global DATA, NO_PAIRS
     while True:
-        second_result = requests.get(DEXLAB_GET_PAIRS_API)
+        second_result = requests.get(RAYDIUM_RPC_AMM_API)
         if second_result.status_code == 200:
-            NO_PAIRS = len(second_result.json()['data'])
-            print("Dexlab pairs: " + str(NO_PAIRS))
-            for pair in second_result.json()['data']:
-                if pair['address'] in DATA:
-                    continue
-                else:
-                    controller(pair, ChangeType.NEW_MARKET)
-                    DATA[pair['address']] = pair
+            NO_PAIRS = len(second_result.json()['result'])
+            print("RPC pairs: " + str(NO_PAIRS))
 
-        time.sleep(random.randint(10, 20))
+            for pair in second_result.json()['result']:
+                if pair['pubkey'] not in DATA:
+                    controller(pair, ChangeType.RAYDIUM_NEW_MARKET)
+
+        n_rand = random.randint(3, 5)
+        # print(f'Waiting...{n_rand}s')
+        time.sleep(n_rand)
 
 
 def save_data():
     global DATA, NO_PAIRS
     json_obj = json.dumps(DATA)
-    f = open("data/MARKETS.json", "w")
+    f = open(RAYDIUM_RPC_DATA, "w")
     f.write(json_obj)
     f.close()
     print(f"DATA saved with {NO_PAIRS} pairs.")
 
 
-def new_market_alert():
+def main():
+    print("Raydium RPC Scanner starting...")
     init()
     try:
-        main()
+        scan()
         save_data()
     except KeyboardInterrupt:
         save_data()
@@ -105,4 +98,4 @@ def new_market_alert():
 
 
 if __name__ == '__main__':
-    new_market_alert()
+    main()

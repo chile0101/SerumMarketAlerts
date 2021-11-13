@@ -1,4 +1,4 @@
-requests
+requests~=2.26.0
 python-telegram-bot
-backoff
-fastapi
+backoff~=1.11.1
+fastapi~=0.70.0
